@@ -1,3 +1,7 @@
+#E-commerce Cart Handler
+
+This project was created to handle a user's cart, up till the checkout point. The project provides a fixed mock array of products that can be added to, or, removed from the user's cart.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
