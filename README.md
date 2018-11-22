@@ -1,4 +1,4 @@
-#E-commerce Cart Handler
+# E-commerce Cart Handler
 
 This project was created to handle a user's cart, up till the checkout point. The project provides a fixed mock array of products that can be added to, or, removed from the user's cart.
 
