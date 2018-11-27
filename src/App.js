@@ -1,7 +1,10 @@
 import React, { Component } from "react";
-import Products from "./components/products";
-import products from "./data/products.js";
-import Cart from "./components/cart";
+import { BrowserRouter as Router, Route } from "react-router-dom";
+import Home from "./components/views/home";
+import ProductDetails from "./components/views/product-details";
+import ProductsView from "./components/views/products-view";
+import Navbar from "./components/partials/navbar";
+import products from "./data/products";
 import cartItems from "./data/cart-items.js";
 
 class App extends Component {
@@ -10,28 +13,34 @@ class App extends Component {
 
     this.state = {
       products: products,
-      cartItems: cartItems,
-      cartItemsByProductId: this.getCartItemsByProductId(),
-      productsById: this.getProductsById()
+      cartItems: cartItems
     };
 
-    this.handleAddToCart = this.handleAddToCart.bind(this);
-    this.handleIncrementCartCount = this.handleIncrementCartCount.bind(this);
-    this.handleDecrementCartCount = this.handleDecrementCartCount.bind(this);
-    this.handleDeleteFromCart = this.handleDeleteFromCart.bind(this);
+    this.persistState(this.state);
+  }
+
+  persistState(newState) {
+    for (const key in newState) {
+      if (newState.hasOwnProperty(key)) {
+        localStorage.setItem(key, JSON.stringify(newState[key]));
+      }
+    }
   }
 
   performCartActions(product_id, action) {
-    let { productsById } = this.state;
-    let { cartItemsByProductId } = this.state;
+    let productsById = this.getProductsById();
     let product = action(productsById[product_id]);
+
+    let products = this.objectToArray(productsById);
+
+    this.setState({ products });
+
+    let cartItemsByProductId = this.getCartItemsByProductId();
     let cartItem = cartItemsByProductId[product_id] || {
-      id: this.state.cartItems.length,
+      id: this.state.cartItems.length + 1,
       product_id: product.id,
       count: 0
     };
-
-    productsById[[product.id]] = product;
     cartItem["count"] = product.cart_count;
     cartItemsByProductId[cartItem.product_id] = cartItem;
 
@@ -39,20 +48,10 @@ class App extends Component {
       delete cartItemsByProductId[cartItem.product_id];
     }
 
-    let newState = {
-      products: this.objectToArray(productsById),
-      productsById: productsById,
-      cartItems: this.objectToArray(cartItemsByProductId),
-      cartItemsByProductId: cartItemsByProductId
-    };
+    let cartItems = this.objectToArray(cartItemsByProductId);
 
-    for (const key in newState) {
-      if (newState.hasOwnProperty(key)) {
-        localStorage.setItem(key, newState[key]);
-      }
-    }
-
-    this.setState(newState);
+    this.setState({ cartItems });
+    this.persistState({ products, cartItems });
   }
 
   objectToArray(object) {
@@ -77,9 +76,9 @@ class App extends Component {
     return product;
   }
 
-  handleAddToCart(product_id) {
-    this.performCartActions(product_id, this.addToCart);
-  }
+  handleAddToCart = product => {
+    this.performCartActions(product, this.addToCart);
+  };
 
   incrementCartCount(product) {
     if (product.quantity > 0) {
@@ -92,9 +91,9 @@ class App extends Component {
     return product;
   }
 
-  handleIncrementCartCount(product_id) {
+  handleIncrementCartCount = product_id => {
     this.performCartActions(product_id, this.incrementCartCount);
-  }
+  };
 
   decrementCartCount(product) {
     product.cart_count > 0
@@ -109,9 +108,9 @@ class App extends Component {
     return product;
   }
 
-  handleDecrementCartCount(product_id) {
+  handleDecrementCartCount = product_id => {
     this.performCartActions(product_id, this.decrementCartCount);
-  }
+  };
 
   removeFromCart(product) {
     product.quantity += product.cart_count;
@@ -122,15 +121,15 @@ class App extends Component {
     return product;
   }
 
-  handleDeleteFromCart(product_id) {
+  handleDeleteFromCart = product_id => {
     this.performCartActions(product_id, this.removeFromCart);
-  }
+  };
 
   getProductsById() {
     let productsById = {};
     let cartItemsByProductId = this.getCartItemsByProductId();
 
-    products.forEach(product => {
+    this.state.products.forEach(product => {
       let cartItem = cartItemsByProductId[product.id];
       product.cart_count = cartItem ? cartItem.count : 0;
       productsById[product.id] = product;
@@ -139,10 +138,32 @@ class App extends Component {
     return productsById;
   }
 
+  getCartSummary() {
+    let summary = {
+      total_price: 0,
+      no_of_items: 0
+    };
+
+    let products = this.getProductsById();
+
+    this.state.cartItems.forEach(item => {
+      summary.no_of_items += 1;
+
+      summary.total_price = Number(
+        (
+          summary.total_price +
+          products[item.product_id]["price"] * item.count
+        ).toFixed(2)
+      );
+    });
+
+    return summary;
+  }
+
   getCartItemsByProductId() {
     let cartItemsByProductId = {};
 
-    cartItems.forEach(item => {
+    this.state.cartItems.forEach(item => {
       cartItemsByProductId[item.product_id] = item;
     });
 
@@ -151,43 +172,49 @@ class App extends Component {
 
   render() {
     return (
-      <div className="container-fluid">
-        <div className="row justify-content-around">
-          <div className="col-12 col-md-4">
-            <h2 className="mt-5 mb-2">
-              Products
-              {this.state.products.length > 0 && (
-                <small>
-                  ({this.state.products.length} item
-                  {this.state.products.length > 1 && "s"})
-                </small>
-              )}
-            </h2>
-            <Products
-              products={this.state.products}
-              cartItems={this.state.cartItemsByProductId}
-              handleAddToCart={this.handleAddToCart}
-              handleDeleteFromCart={this.handleDeleteFromCart}
-              handleDecrementCartCount={this.handleDecrementCartCount}
-              handleIncrementCartCount={this.handleIncrementCartCount}
-            />
-            <h2 className="mt-5 mb-2">
-              Cart
-              {this.state.cartItems.length > 0 && (
-                <small>
-                  ({this.state.cartItems.length} item
-                  {this.state.cartItems.length > 1 && "s"})
-                </small>
-              )}
-            </h2>
-            <Cart
-              cartItems={this.state.cartItems}
-              products={this.state.productsById}
-              handleDeleteFromCart={this.handleDeleteFromCart}
-            />
+      <Router>
+        <React.Fragment>
+          <Navbar />
+          <div className="container-fluid">
+            <div className="row justify-content-center">
+              <Route exact path="/" component={Home} />
+              <Route
+                exact
+                path="/products"
+                render={props => (
+                  <ProductsView
+                    products={this.state.products}
+                    onAdd={this.handleAddToCart}
+                    onDelete={this.handleDeleteFromCart}
+                    onDecrement={this.handleDecrementCartCount}
+                    onIncrement={this.handleIncrementCartCount}
+                    cartItems={this.state.cartItems}
+                    cartSummary={this.getCartSummary()}
+                    productsById={this.getProductsById()}
+                    cartItemsByProductId={this.getCartItemsByProductId()}
+                    {...props}
+                  />
+                )}
+              />
+              <Route
+                path="/products/:id"
+                render={props => (
+                  <ProductDetails
+                    products={this.state.products}
+                    onAdd={this.handleAddToCart}
+                    onDelete={this.handleDeleteFromCart}
+                    onDecrement={this.handleDecrementCartCount}
+                    onIncrement={this.handleIncrementCartCount}
+                    productsById={this.getProductsById()}
+                    cartItemsByProductId={this.getCartItemsByProductId()}
+                    {...props}
+                  />
+                )}
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </React.Fragment>
+      </Router>
     );
   }
 }
